@@ -20,10 +20,10 @@ namespace NFCTicketingWebAPI
     public class SmartTicketAuthenticationManager : IAuthenticationManager
     {
         private readonly string _connectionString;
-        private readonly string _key;
+        private readonly RsaSecurityKey _key;
         public IDictionary<string, string> tokens = new Dictionary<string, string>();
 
-        public SmartTicketAuthenticationManager(string key, string sqlConnectionString)
+        public SmartTicketAuthenticationManager(RsaSecurityKey key, string sqlConnectionString)
         {
             _connectionString = sqlConnectionString;
             _key = key;
@@ -58,12 +58,11 @@ namespace NFCTicketingWebAPI
         public string GenerateToken(string username)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_key);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new Claim[] { new Claim(ClaimTypes.Name, username) }), 
                 Expires = DateTime.UtcNow.AddHours(1), 
-                SigningCredentials = new SigningCredentials(new RsaSecurityKey(new RSACryptoServiceProvider(2048)), SecurityAlgorithms.RsaSha256Signature)
+                SigningCredentials = new SigningCredentials(_key, SecurityAlgorithms.RsaSha256Signature)
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);

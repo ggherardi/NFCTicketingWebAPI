@@ -38,5 +38,12 @@ namespace NFCTicketingWebAPI.Controllers
             }
             return Ok(token);
         }
+
+        [HttpGet]
+        public IActionResult GetTicket()
+        {
+            string a = "Pippo";
+            return Ok(a);
+        }
     }
 }

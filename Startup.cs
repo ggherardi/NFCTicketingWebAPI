@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -32,7 +33,7 @@ namespace NFCTicketingWebAPI
 
             string tokenKey = Configuration.GetValue<string>("Token");
             string sqlConnectionString = Configuration.GetValue<string>("SmartTicketConnectionString");
-            byte[] key = Encoding.ASCII.GetBytes(tokenKey);
+            RsaSecurityKey key = new RsaSecurityKey(new RSACryptoServiceProvider(2048));
 
             services.AddAuthentication(auth => 
                 {
@@ -42,10 +43,10 @@ namespace NFCTicketingWebAPI
                 {
                     jwt.RequireHttpsMetadata = false;
                     jwt.SaveToken = true;
-                    jwt.TokenValidationParameters = new TokenValidationParameters() { ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(key), ValidateIssuer = false, ValidateAudience = false };
+                    jwt.TokenValidationParameters = new TokenValidationParameters() { ValidateIssuerSigningKey = true, IssuerSigningKey = key, ValidateIssuer = false, ValidateAudience = false };
                 });
 
-            services.AddSingleton<IAuthenticationManager>(new SmartTicketAuthenticationManager(tokenKey, sqlConnectionString));
+            services.AddSingleton<IAuthenticationManager>(new SmartTicketAuthenticationManager(key, sqlConnectionString));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
