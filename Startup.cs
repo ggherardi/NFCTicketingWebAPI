@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -35,6 +36,10 @@ namespace NFCTicketingWebAPI
             string sqlConnectionString = Configuration.GetValue<string>("SmartTicketConnectionString");
             RsaSecurityKey key = new RsaSecurityKey(new RSACryptoServiceProvider(2048));
 
+            // EF DBContext
+            services.AddDbContext<NFCValidationStorageContext>(options => options.UseSqlServer(sqlConnectionString));
+            
+            // JWT Authentication
             services.AddAuthentication(auth => 
                 {
                     auth.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -45,7 +50,6 @@ namespace NFCTicketingWebAPI
                     jwt.SaveToken = true;
                     jwt.TokenValidationParameters = new TokenValidationParameters() { ValidateIssuerSigningKey = true, IssuerSigningKey = key, ValidateIssuer = false, ValidateAudience = false };
                 });
-
             services.AddSingleton<IAuthenticationManager>(new SmartTicketAuthenticationManager(key, sqlConnectionString));
         }
 
@@ -56,7 +60,7 @@ namespace NFCTicketingWebAPI
             {
                 app.UseDeveloperExceptionPage();
             }
-
+            
             app.UseHttpsRedirection();
 
             app.UseRouting();

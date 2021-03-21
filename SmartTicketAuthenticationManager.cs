@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -13,7 +14,7 @@ namespace NFCTicketingWebAPI
 {
     public interface IAuthenticationManager
     {
-        bool Authenticate(string username, string password);
+        bool Authenticate(DbContext context, string username, string password);
         string GenerateToken(string username);
     }
 
@@ -21,7 +22,6 @@ namespace NFCTicketingWebAPI
     {
         private readonly string _connectionString;
         private readonly RsaSecurityKey _key;
-        public IDictionary<string, string> tokens = new Dictionary<string, string>();
 
         public SmartTicketAuthenticationManager(RsaSecurityKey key, string sqlConnectionString)
         {
@@ -29,30 +29,9 @@ namespace NFCTicketingWebAPI
             _key = key;
         }
 
-        public bool Authenticate(string username, string password)
+        public bool Authenticate(DbContext context, string username, string password)
         {
-            try
-            {
-                SqlConnection connection = new SqlConnection(_connectionString);
-                connection.Open();
-                string usernameParamater = "@username";
-                string passwordParameter = "@password";
-                string commandString = $"SELECT TOP 1 user_id FROM SmartTicketUser WHERE username = {usernameParamater} AND password = {passwordParameter}";
-                SqlCommand command = new SqlCommand(commandString, connection);
-                command.Parameters.AddWithValue(usernameParamater, username);
-                command.Parameters.AddWithValue(passwordParameter, password);
-                SqlDataReader reader = command.ExecuteReader();
-                if(!reader.HasRows)
-                {
-                    throw new Exception("User not found.");
-                }
-                connection.Close();
-            }
-            catch (Exception) 
-            {
-                return false;
-            }
-            return true;
+            return (context as NFCValidationStorageContext)?.SmartTicketUsers.FirstOrDefault(u => u.Username == username && u.Password == /*remember to add the encryption code here, after making the registration method*/ password) != null;
         }
 
         public string GenerateToken(string username)

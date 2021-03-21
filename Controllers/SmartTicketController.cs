@@ -13,12 +13,14 @@ namespace NFCTicketingWebAPI.Controllers
     [Route("api/[controller]")]
     public class SmartTicketController : ControllerBase
     {
+        private readonly NFCValidationStorageContext _dbContext;
         private readonly ILogger<SmartTicketController> _logger;
         private readonly IAuthenticationManager _authManager;
+        private IDictionary<string, string> _authenticatedUsers = new Dictionary<string, string>();
 
-
-        public SmartTicketController(ILogger<SmartTicketController> logger, IAuthenticationManager authManager)
+        public SmartTicketController(ILogger<SmartTicketController> logger, IAuthenticationManager authManager, NFCValidationStorageContext dbContext)
         {
+            _dbContext = dbContext;
             _logger = logger;
             _authManager = authManager;
         }
@@ -28,9 +30,10 @@ namespace NFCTicketingWebAPI.Controllers
         public IActionResult GetToken([FromBody] UserCredentials credentials)
         {
             string token = string.Empty;
-            if(_authManager.Authenticate(credentials.Username, credentials.Password))
+            if(_authManager.Authenticate(_dbContext, credentials.Username, credentials.Password))
             {
                 token = _authManager.GenerateToken(credentials.Username);
+                _authenticatedUsers.Add(token, credentials.Username);
             }
             if (string.IsNullOrEmpty(token))
             {
@@ -42,8 +45,21 @@ namespace NFCTicketingWebAPI.Controllers
         [HttpGet]
         public IActionResult GetTicket()
         {
-            string a = "Pippo";
-            return Ok(a);
+            string username = User.Identity.Name;
+            var query = from tickets in _dbContext.SmartTickets
+                        join users in _dbContext.SmartTicketUsers
+                        on tickets.UserId equals users.UserId
+                        where users.Username == User.Identity.Name
+                        select tickets;
+            SmartTicket ticket = query.FirstOrDefault();
+            if(ticket != null)
+            {
+                return Ok(ticket);
+            }
+            else
+            {
+                return NotFound();
+            }
         }
     }
 }
