@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="orm\" />
+    <Folder Include="ORM\" />
   </ItemGroup>
 
 

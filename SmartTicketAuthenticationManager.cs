@@ -20,12 +20,10 @@ namespace NFCTicketingWebAPI
 
     public class SmartTicketAuthenticationManager : IAuthenticationManager
     {
-        private readonly string _connectionString;
         private readonly RsaSecurityKey _key;
 
-        public SmartTicketAuthenticationManager(RsaSecurityKey key, string sqlConnectionString)
+        public SmartTicketAuthenticationManager(RsaSecurityKey key)
         {
-            _connectionString = sqlConnectionString;
             _key = key;
         }
 

@@ -49,8 +49,8 @@ namespace NFCTicketingWebAPI
                     jwt.RequireHttpsMetadata = false;
                     jwt.SaveToken = true;
                     jwt.TokenValidationParameters = new TokenValidationParameters() { ValidateIssuerSigningKey = true, IssuerSigningKey = key, ValidateIssuer = false, ValidateAudience = false };
-                });
-            services.AddSingleton<IAuthenticationManager>(new SmartTicketAuthenticationManager(key, sqlConnectionString));
+                });            
+            services.AddSingleton<IAuthenticationManager>(new SmartTicketAuthenticationManager(key));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
