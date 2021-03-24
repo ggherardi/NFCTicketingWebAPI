@@ -17,6 +17,7 @@ namespace NFCTicketingWebAPI
         {
         }
 
+        public virtual DbSet<CreditTransaction> CreditTransactions { get; set; }
         public virtual DbSet<SmartTicket> SmartTickets { get; set; }
         public virtual DbSet<SmartTicketUser> SmartTicketUsers { get; set; }
         public virtual DbSet<Validation> Validations { get; set; }
@@ -24,6 +25,35 @@ namespace NFCTicketingWebAPI
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.HasAnnotation("Relational:Collation", "Latin1_General_CI_AS");
+
+            modelBuilder.Entity<CreditTransaction>(entity =>
+            {
+                entity.ToTable("CreditTransaction");
+
+                entity.Property(e => e.Id).HasColumnName("id");
+
+                entity.Property(e => e.Amount)
+                    .HasColumnType("smallmoney")
+                    .HasColumnName("amount");
+
+                entity.Property(e => e.CardId)
+                    .IsRequired()
+                    .HasMaxLength(150)
+                    .HasColumnName("card_id")
+                    .IsFixedLength(true);
+
+                entity.Property(e => e.Date)
+                    .HasColumnType("datetime")
+                    .HasColumnName("date");
+
+                entity.Property(e => e.Location).HasColumnName("location");
+
+                entity.HasOne(d => d.Card)
+                    .WithMany(p => p.CreditTransactions)
+                    .HasForeignKey(d => d.CardId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_CreditTransaction_SmartTicket");
+            });
 
             modelBuilder.Entity<SmartTicket>(entity =>
             {
@@ -57,21 +87,34 @@ namespace NFCTicketingWebAPI
                     .HasMaxLength(50)
                     .HasColumnName("ticket_type");
 
-                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.UsageTimestamp)
+                    .HasColumnType("datetime")
+                    .HasColumnName("usage_timestamp");
 
-                entity.HasOne(d => d.User)
+                entity.Property(e => e.Username)
+                    .HasMaxLength(100)
+                    .IsUnicode(false)
+                    .HasColumnName("username");
+
+                entity.Property(e => e.Virtual).HasColumnName("virtual");
+
+                entity.HasOne(d => d.UsernameNavigation)
                     .WithMany(p => p.SmartTickets)
-                    .HasForeignKey(d => d.UserId)
+                    .HasForeignKey(d => d.Username)
                     .HasConstraintName("FK_SmartTicket_SmartTicketUser");
             });
 
             modelBuilder.Entity<SmartTicketUser>(entity =>
             {
-                entity.HasKey(e => e.UserId);
+                entity.HasKey(e => e.Username)
+                    .HasName("PK_SmartTicketUser_1");
 
                 entity.ToTable("SmartTicketUser");
 
-                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.Username)
+                    .HasMaxLength(100)
+                    .IsUnicode(false)
+                    .HasColumnName("username");
 
                 entity.Property(e => e.CreationTime)
                     .IsRequired()
@@ -94,12 +137,6 @@ namespace NFCTicketingWebAPI
                     .HasMaxLength(50)
                     .IsUnicode(false)
                     .HasColumnName("surname");
-
-                entity.Property(e => e.Username)
-                    .IsRequired()
-                    .HasMaxLength(100)
-                    .IsUnicode(false)
-                    .HasColumnName("username");
             });
 
             modelBuilder.Entity<Validation>(entity =>

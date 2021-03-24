@@ -17,7 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ORM\" />
+    <Reference Include="NFCTicketValidator">
+      <HintPath>..\NFCTicketValidator\bin\x86\Debug\NFCTicketValidator.exe</HintPath>
+    </Reference>
   </ItemGroup>
 
 

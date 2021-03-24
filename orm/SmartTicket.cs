@@ -9,6 +9,7 @@ namespace NFCTicketingWebAPI
     {
         public SmartTicket()
         {
+            CreditTransactions = new HashSet<CreditTransaction>();
             Validations = new HashSet<Validation>();
         }
 
@@ -17,10 +18,13 @@ namespace NFCTicketingWebAPI
         public string TicketType { get; set; }
         public DateTime? CurrentValidation { get; set; }
         public DateTime? SessionValidation { get; set; }
+        public DateTime UsageTimestamp { get; set; }
         public decimal? SessionExpense { get; set; }
-        public int? UserId { get; set; }
+        public string Username { get; set; }
+        public bool Virtual { get; set; }
 
-        public virtual SmartTicketUser User { get; set; }
+        public virtual SmartTicketUser UsernameNavigation { get; set; }
+        public virtual ICollection<CreditTransaction> CreditTransactions { get; set; }
         public virtual ICollection<Validation> Validations { get; set; }
     }
 }
