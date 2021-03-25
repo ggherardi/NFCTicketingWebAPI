@@ -14,7 +14,14 @@ namespace NFCTicketingWebAPI
     public class UserRegistration
     {
         public UserCredentials Credentials { get; set; }
+        public string Email { get; set; }
         public string Name { get; set; }
         public string Surname { get; set; }
+    }
+
+    public class CreditRecharge
+    {
+        public string TicketId { get; set; }
+        public decimal Amount { get; set; }
     }
 }

@@ -51,7 +51,7 @@ namespace NFCTicketingWebAPI.Controllers
         [Route("register")]
         public IActionResult RegisterUser([FromBody] UserRegistration registration)
         {
-            _dbContext.SmartTicketUsers.Add(new SmartTicketUser() { Name = registration.Name, Surname = registration.Surname, Username = registration.Credentials.Username, Password = registration.Credentials.Password });
+            _dbContext.SmartTicketUsers.Add(new SmartTicketUser() { Name = registration.Name, Surname = registration.Surname, Username = registration.Credentials.Username, Password = registration.Credentials.Password, Email = registration.Email });
             _dbContext.SaveChanges();
             return AuthenticateUser(registration.Credentials);
         }
@@ -74,17 +74,36 @@ namespace NFCTicketingWebAPI.Controllers
             }            
         }
 
+        [HttpPost]
+        [Route("addcredit")]
+        public IActionResult AddCredit([FromBody] CreditRecharge recharge)
+        {
+            SmartTicket ticket = _dbContext.SmartTickets.Find(recharge.TicketId);
+            if(ticket != null)
+            {
+                ticket.Credit += recharge.Amount;
+                _dbContext.SaveChanges();
+                _dbContext.CreditTransactions.Add(new CreditTransaction() { Amount = recharge.Amount, CardId = recharge.TicketId, Date = DateTime.Now, Location = "online" });
+                _dbContext.SaveChanges();
+                return Ok("Amount added to ticket succesfully.");
+            }
+            else
+            {
+                return StatusCode((int)HttpStatusCode.NotAcceptable, "The ticket has not been found.");
+            }
+        }
+
         /// <summary>
         /// This endpoint creates a virtual card and returns a NDEFMessage containing the encrypted ticket, that the device will store and use when validating the ticket.
         /// </summary>
         /// <returns></returns>
-        [HttpPut]
+        [HttpPost]
         [Route("createvirtualticket")]
         public IActionResult CreateVirtualTicket()
-        {
-            byte[] encryptedTicketInNDEFMessage = new byte[] { }; 
+        {            
+            byte[] encryptedTicketInNDEFMessage = new byte[] { 33 }; 
             SmartTicket virtualTicket = null;
-            if (_dbContext.SmartTickets.FirstOrDefault(s => s.Username == User.Identity.Name && s.Virtual) != null)
+            if (_dbContext.SmartTickets.FirstOrDefault(s => s.Username == User.Identity.Name && s.Virtual) == null)
             {
                 try
                 {
@@ -93,13 +112,13 @@ namespace NFCTicketingWebAPI.Controllers
                     byte[] encryptedTicket = TicketEncryption.EncryptTicket(Utility.ConvertToEncryptableSmartTicket(virtualTicket), TicketEncryption.GetPaddedIV(virtualTicketId));
                     encryptedTicketInNDEFMessage = new NDEFMessage(encryptedTicket, NDEFRecordType.Types.Text).GetFormattedBlock();
                     _dbContext.SmartTickets.Add(virtualTicket);
-                    _dbContext.SaveChanges();                    
+                    _dbContext.SaveChanges();
                 }                
                 catch(Exception ex)
                 {
                     return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
                 }
-                return Ok(encryptedTicketInNDEFMessage);
+                return Ok(BitConverter.ToString(encryptedTicketInNDEFMessage));
             }
             return StatusCode((int)HttpStatusCode.NotAcceptable, "The user already has an associated virtual ticket.");
         }

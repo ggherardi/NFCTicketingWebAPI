@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="NFCTicketValidator">
-      <HintPath>..\NFCTicketValidator\bin\x86\Debug\NFCTicketValidator.exe</HintPath>
+    <Reference Include="NFCReaderAPI">
+      <HintPath>..\NFCReaderAPI\bin\Debug\NFCReaderAPI.dll</HintPath>
     </Reference>
   </ItemGroup>
 

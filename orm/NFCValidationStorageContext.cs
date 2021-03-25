@@ -122,19 +122,24 @@ namespace NFCTicketingWebAPI
                     .IsConcurrencyToken()
                     .HasColumnName("creation_time");
 
+                entity.Property(e => e.Email)
+                    .IsRequired()
+                    .HasMaxLength(150)
+                    .IsUnicode(false)
+                    .HasColumnName("email");
+
                 entity.Property(e => e.Name)
-                    .HasMaxLength(50)
+                    .HasMaxLength(100)
                     .IsUnicode(false)
                     .HasColumnName("name");
 
                 entity.Property(e => e.Password)
                     .IsRequired()
-                    .HasMaxLength(10)
-                    .HasColumnName("password")
-                    .IsFixedLength(true);
+                    .HasMaxLength(50)
+                    .IsUnicode(false)
+                    .HasColumnName("password");
 
                 entity.Property(e => e.Surname)
-                    .HasMaxLength(50)
                     .IsUnicode(false)
                     .HasColumnName("surname");
             });
