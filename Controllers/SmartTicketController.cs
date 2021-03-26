@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using NFCTicketing;
 using NFCTicketing.Encryption;
 using System;
 using System.Collections.Generic;
@@ -62,7 +63,7 @@ namespace NFCTicketingWebAPI.Controllers
         {
             // I need to encrypt the cardId to avoid unallowed usage of the api
             SmartTicket ticket = _dbContext.SmartTickets.Find(cardId);
-            if(ticket != null && ticket.Username == null && !_dbContext.SmartTickets.Any(s => s.Username == User.Identity.Name))
+            if(ticket != null && !ticket.Deactivated && ticket.Username == null && !_dbContext.SmartTickets.Any(s => s.Username == User.Identity.Name && !s.Virtual))
             {
                 ticket.Username = User.Identity.Name;
                 _dbContext.SaveChanges();
@@ -78,14 +79,26 @@ namespace NFCTicketingWebAPI.Controllers
         [Route("addcredit")]
         public IActionResult AddCredit([FromBody] CreditRecharge recharge)
         {
+            byte[] encryptedTicketInNDEFMessage = new byte[] { };
             SmartTicket ticket = _dbContext.SmartTickets.Find(recharge.TicketId);
             if(ticket != null)
             {
-                ticket.Credit += recharge.Amount;
-                _dbContext.SaveChanges();
-                _dbContext.CreditTransactions.Add(new CreditTransaction() { Amount = recharge.Amount, CardId = recharge.TicketId, Date = DateTime.Now, Location = "online" });
-                _dbContext.SaveChanges();
-                return Ok("Amount added to ticket succesfully.");
+                try
+                {
+                    ticket.Credit += recharge.Amount;
+                    EncryptableSmartTicket encryptableTicket = Utility.ConvertToEncryptableSmartTicket(ticket);
+                    byte[] encryptedTicket = TicketEncryption.EncryptTicket(encryptableTicket, TicketEncryption.GetPaddedIV(encryptableTicket.CardID));
+                    encryptedTicketInNDEFMessage = new NDEFMessage(encryptedTicket, NDEFRecordType.Types.Text).GetFormattedBlock();
+                    _dbContext.SaveChanges();
+                    _dbContext.CreditTransactions.Add(new CreditTransaction() { Amount = recharge.Amount, CardId = recharge.TicketId, Date = DateTime.Now, Location = "online" });
+                    _dbContext.SaveChanges();
+
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, ex.Message);
+                }
+                return Ok(encryptedTicketInNDEFMessage);
             }
             else
             {
@@ -101,14 +114,14 @@ namespace NFCTicketingWebAPI.Controllers
         [Route("createvirtualticket")]
         public IActionResult CreateVirtualTicket()
         {            
-            byte[] encryptedTicketInNDEFMessage = new byte[] { 33 }; 
+            byte[] encryptedTicketInNDEFMessage = new byte[] { }; 
             SmartTicket virtualTicket = null;
-            if (_dbContext.SmartTickets.FirstOrDefault(s => s.Username == User.Identity.Name && s.Virtual) == null)
+            if (!_dbContext.SmartTickets.Any(s => s.Username == User.Identity.Name && s.Virtual && !s.Deactivated))
             {
                 try
                 {
                     byte[] virtualTicketId = Guid.NewGuid().ToByteArray();
-                    virtualTicket = new SmartTicket() { CardId = BitConverter.ToString(virtualTicketId), Credit = 0, TicketType = "BIT", Username = User.Identity.Name, Virtual = true, UsageTimestamp = DateTime.Now };
+                    virtualTicket = new SmartTicket() { CardId = BitConverter.ToString(virtualTicketId), Credit = 0, TicketType = "BIT", Username = User.Identity.Name, Virtual = true, UsageTimestamp = DateTime.Now, Deactivated = false };
                     byte[] encryptedTicket = TicketEncryption.EncryptTicket(Utility.ConvertToEncryptableSmartTicket(virtualTicket), TicketEncryption.GetPaddedIV(virtualTicketId));
                     encryptedTicketInNDEFMessage = new NDEFMessage(encryptedTicket, NDEFRecordType.Types.Text).GetFormattedBlock();
                     _dbContext.SmartTickets.Add(virtualTicket);
@@ -120,7 +133,24 @@ namespace NFCTicketingWebAPI.Controllers
                 }
                 return Ok(BitConverter.ToString(encryptedTicketInNDEFMessage));
             }
-            return StatusCode((int)HttpStatusCode.NotAcceptable, "The user already has an associated virtual ticket.");
+            return StatusCode((int)HttpStatusCode.NotAcceptable, "The user already has an associated virtual ticket");
+        }
+
+        [HttpPost]
+        [Route("deactivateticket")]
+        public IActionResult DeactivateTicket([FromBody] string cardId)
+        {
+            SmartTicket ticket = _dbContext.SmartTickets.Find(cardId);
+            if (ticket != null && !ticket.Deactivated && ticket.Username == User.Identity.Name)
+            {
+                ticket.Deactivated = true;
+                _dbContext.SaveChanges();
+                return Ok("The ticket has been deactivated");
+            }
+            else
+            {
+                return StatusCode((int)HttpStatusCode.NotAcceptable, ticket == null ? "No tickets found with the provided id" : ticket.Deactivated ? "The ticket is already deactivated" : "The user is not the owner of the ticket");
+            }
         }
 
         [HttpGet]
@@ -131,7 +161,7 @@ namespace NFCTicketingWebAPI.Controllers
             IQueryable<SmartTicket> query = from tickets in _dbContext.SmartTickets
                         join users in _dbContext.SmartTicketUsers
                         on tickets.Username equals users.Username
-                        where users.Username == User.Identity.Name
+                        where users.Username == User.Identity.Name && !tickets.Deactivated
                         select tickets;
             List<SmartTicket> allUserTickets = query.ToList();
             if(allUserTickets != null)

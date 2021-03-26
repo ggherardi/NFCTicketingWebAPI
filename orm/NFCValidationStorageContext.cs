@@ -39,14 +39,16 @@ namespace NFCTicketingWebAPI
                 entity.Property(e => e.CardId)
                     .IsRequired()
                     .HasMaxLength(150)
-                    .HasColumnName("card_id")
-                    .IsFixedLength(true);
+                    .IsUnicode(false)
+                    .HasColumnName("card_id");
 
                 entity.Property(e => e.Date)
                     .HasColumnType("datetime")
                     .HasColumnName("date");
 
-                entity.Property(e => e.Location).HasColumnName("location");
+                entity.Property(e => e.Location)
+                    .IsUnicode(false)
+                    .HasColumnName("location");
 
                 entity.HasOne(d => d.Card)
                     .WithMany(p => p.CreditTransactions)
@@ -63,8 +65,13 @@ namespace NFCTicketingWebAPI
 
                 entity.Property(e => e.CardId)
                     .HasMaxLength(150)
-                    .HasColumnName("card_id")
-                    .IsFixedLength(true);
+                    .IsUnicode(false)
+                    .HasColumnName("card_id");
+
+                entity.Property(e => e.CreationTime)
+                    .HasColumnType("datetime")
+                    .HasColumnName("creation_time")
+                    .HasDefaultValueSql("(getdate())");
 
                 entity.Property(e => e.Credit)
                     .HasColumnType("smallmoney")
@@ -74,9 +81,12 @@ namespace NFCTicketingWebAPI
                     .HasColumnType("datetime")
                     .HasColumnName("current_validation");
 
+                entity.Property(e => e.Deactivated).HasColumnName("deactivated");
+
                 entity.Property(e => e.SessionExpense)
                     .HasColumnType("smallmoney")
-                    .HasColumnName("session_expense");
+                    .HasColumnName("session_expense")
+                    .HasDefaultValueSql("((0))");
 
                 entity.Property(e => e.SessionValidation)
                     .HasColumnType("datetime")
@@ -117,10 +127,9 @@ namespace NFCTicketingWebAPI
                     .HasColumnName("username");
 
                 entity.Property(e => e.CreationTime)
-                    .IsRequired()
-                    .IsRowVersion()
-                    .IsConcurrencyToken()
-                    .HasColumnName("creation_time");
+                    .HasColumnType("datetime")
+                    .HasColumnName("creation_time")
+                    .HasDefaultValueSql("(getdate())");
 
                 entity.Property(e => e.Email)
                     .IsRequired()
@@ -152,14 +161,16 @@ namespace NFCTicketingWebAPI
 
                 entity.Property(e => e.CardId)
                     .HasMaxLength(150)
-                    .HasColumnName("card_id")
-                    .IsFixedLength(true);
+                    .IsUnicode(false)
+                    .HasColumnName("card_id");
 
                 entity.Property(e => e.EncryptedTicket)
                     .HasMaxLength(150)
                     .HasColumnName("encrypted_ticket");
 
-                entity.Property(e => e.Location).HasColumnName("location");
+                entity.Property(e => e.Location)
+                    .IsUnicode(false)
+                    .HasColumnName("location");
 
                 entity.Property(e => e.ValidationTime)
                     .HasColumnType("datetime")

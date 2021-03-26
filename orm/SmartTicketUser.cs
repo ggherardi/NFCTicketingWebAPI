@@ -17,7 +17,7 @@ namespace NFCTicketingWebAPI
         public string Password { get; set; }
         public string Name { get; set; }
         public string Surname { get; set; }
-        public byte[] CreationTime { get; set; }
+        public DateTime CreationTime { get; set; }
 
         public virtual ICollection<SmartTicket> SmartTickets { get; set; }
     }

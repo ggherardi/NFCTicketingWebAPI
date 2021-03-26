@@ -10,7 +10,7 @@ namespace NFCTicketingWebAPI
     {
         public static EncryptableSmartTicket ConvertToEncryptableSmartTicket(SmartTicket ticket)
         {
-            string[] cardIdStringArray = ticket.CardId.Split("-");
+            string[] cardIdStringArray = ticket.CardId.Trim().Split("-");
             byte[] cardId = new byte[cardIdStringArray.Length];
             for(int i = 0; i < cardIdStringArray.Length; i++)
             {

@@ -22,6 +22,8 @@ namespace NFCTicketingWebAPI
         public decimal? SessionExpense { get; set; }
         public string Username { get; set; }
         public bool Virtual { get; set; }
+        public bool Deactivated { get; set; }
+        public DateTime CreationTime { get; set; }
 
         public virtual SmartTicketUser UsernameNavigation { get; set; }
         public virtual ICollection<CreditTransaction> CreditTransactions { get; set; }
