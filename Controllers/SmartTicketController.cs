@@ -15,7 +15,7 @@ namespace NFCTicketingWebAPI.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class SmartTicketController : ControllerBase
+    public class SmartTicketController : ControllerBase, IValidationStorage
     {
         private readonly NFCValidationStorageContext _dbContext;
         private readonly ILogger<SmartTicketController> _logger;
@@ -35,9 +35,10 @@ namespace NFCTicketingWebAPI.Controllers
         public IActionResult AuthenticateUser([FromBody] UserCredentials credentials)
         {
             string token = string.Empty;
-            if(_authManager.Authenticate(_dbContext, credentials.Username, credentials.Password))
+            string role = _authManager.GetRole(_dbContext, credentials.Username, credentials.Password);
+            if (!string.IsNullOrEmpty(role))
             {
-                token = _authManager.GenerateToken(credentials.Username);
+                token = _authManager.GenerateToken(credentials.Username, role);
                 _authenticatedUsers.Add(token, credentials.Username);
             }
             if (string.IsNullOrEmpty(token))
@@ -45,14 +46,17 @@ namespace NFCTicketingWebAPI.Controllers
                 return Unauthorized();
             }
             return Ok(token);
-        }
+        }        
 
         [AllowAnonymous]
         [HttpPost]
         [Route("register")]
         public IActionResult RegisterUser([FromBody] UserRegistration registration)
         {
-            _dbContext.SmartTicketUsers.Add(new SmartTicketUser() { Name = registration.Name, Surname = registration.Surname, Username = registration.Credentials.Username, Password = registration.Credentials.Password, Email = registration.Email });
+            Role userRole = _dbContext.Roles.FirstOrDefault(r => r.Name == RoleType.User);
+            // Add password hashing!
+            //registration.Credentials.Password
+            _dbContext.SmartTicketUsers.Add(new SmartTicketUser() { Name = registration.Name, Surname = registration.Surname, Username = registration.Credentials.Username, Password = registration.Credentials.Password, Email = registration.Email, Role = userRole.Id});
             _dbContext.SaveChanges();
             return AuthenticateUser(registration.Credentials);
         }
@@ -71,16 +75,35 @@ namespace NFCTicketingWebAPI.Controllers
             }
             else
             {
-                return StatusCode((int)HttpStatusCode.NotAcceptable, ticket == null ? "No tickets found with the provided id." : ticket.Username != null ? "The ticked has already an associated account." : "The user already has an associated physical ticket.");
+                return StatusCode((int)HttpStatusCode.InternalServerError, ticket == null ? "No tickets found with the provided id." : ticket.Username != null ? "The ticked has already an associated account." : "The user already has an associated physical ticket.");
             }            
+        }
+
+        [HttpPost]
+        [Route("unbindticket")]
+        public IActionResult UnbindTicket([FromBody] string cardId)
+        {
+            // I need to encrypt the cardId to avoid unallowed usage of the api
+            SmartTicket ticket = _dbContext.SmartTickets.Find(cardId);
+            if (ticket != null && !ticket.Deactivated && ticket.Username == User.Identity.Name)
+            {
+                ticket.Username = null;
+                _dbContext.SaveChanges();
+                return Ok("The ticket has been succesfully unbound from the user's account.");
+            }
+            else
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ticket == null ? "No tickets found with the provided id." : ticket.Username == null ? "The ticked is already unbound." : "The ticket is bound to another account.");
+            }
         }
 
         [HttpPost]
         [Route("addcredit")]
         public IActionResult AddCredit([FromBody] CreditRecharge recharge)
         {
-            byte[] encryptedTicketInNDEFMessage = new byte[] { };
+            byte[] encryptedTicketInNDEFMessage;
             SmartTicket ticket = _dbContext.SmartTickets.Find(recharge.TicketId);
+            // Add online payments logic here to authorize the balance increase
             if(ticket != null)
             {
                 try
@@ -102,7 +125,7 @@ namespace NFCTicketingWebAPI.Controllers
             }
             else
             {
-                return StatusCode((int)HttpStatusCode.NotAcceptable, "The ticket has not been found.");
+                return StatusCode((int)HttpStatusCode.InternalServerError, "The ticket has not been found.");
             }
         }
 
@@ -133,7 +156,7 @@ namespace NFCTicketingWebAPI.Controllers
                 }
                 return Ok(BitConverter.ToString(encryptedTicketInNDEFMessage));
             }
-            return StatusCode((int)HttpStatusCode.NotAcceptable, "The user already has an associated virtual ticket");
+            return StatusCode((int)HttpStatusCode.InternalServerError, "The user already has an associated virtual ticket");
         }
 
         [HttpPost]
@@ -149,7 +172,49 @@ namespace NFCTicketingWebAPI.Controllers
             }
             else
             {
-                return StatusCode((int)HttpStatusCode.NotAcceptable, ticket == null ? "No tickets found with the provided id" : ticket.Deactivated ? "The ticket is already deactivated" : "The user is not the owner of the ticket");
+                return StatusCode((int)HttpStatusCode.InternalServerError, ticket == null ? "No tickets found with the provided id" : ticket.Deactivated ? "The ticket is already deactivated" : "The user is not the owner of the ticket");
+            }
+        }
+
+        [HttpPost]
+        [Route("deleteticket")]
+        public IActionResult DeleteVirtualTicket([FromBody] string cardId)
+        {            
+            SmartTicket ticket = _dbContext.SmartTickets.Find(cardId);
+            if (ticket != null && ticket.Username == User.Identity.Name && ticket.Virtual)
+            {
+                _dbContext.Remove(ticket);
+                _dbContext.SaveChanges();
+                return Ok("The ticket has been deleted.");
+            }
+            else
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ticket == null ? "No tickets found with the provided id" : ticket.Username != User.Identity.Name ? "The user is not the owner of the ticket" : "The ticket is not virtual" );
+            }
+        }
+
+        [HttpPost]
+        [Route("validate")]
+        public IActionResult ValidateTicket([FromBody] ValidationRegistration registration)
+        {
+            SmartTicket ticket = _dbContext.SmartTickets.Find(registration.TicketId);
+            if (ticket != null && ticket.Username == User.Identity.Name && ticket.Virtual)
+            {
+                try
+                {
+                    EncryptableSmartTicket encryptableTicket = Utility.ConvertToEncryptableSmartTicket(ticket);
+                    ValidationManager manager = new ValidationManager(encryptableTicket, this, registration.Location);
+                    manager.ValidateTicket();
+                    return Ok("Ticket validated");
+                }                
+                catch(Exception ex)
+                {
+                    return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+                }
+            }
+            else
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ticket == null ? "No tickets found with the provided id" : ticket.Username != User.Identity.Name ? "The user is not the owner of the ticket" : "The ticket is not virtual");
             }
         }
 
@@ -173,5 +238,33 @@ namespace NFCTicketingWebAPI.Controllers
                 return NotFound();
             }
         }
+
+        #region IValidationStorage interface
+        public void RegisterValidation(ValidationEntity validation)
+        {
+            _dbContext.Validations.Add(new Validation() { CardId = BitConverter.ToString(validation.CardId), Location = validation.Location, ValidationTime = validation.Time, EncryptedTicket = validation.EncryptedTicketHash });
+            _dbContext.SaveChanges();
+        }
+
+        public void RegisterTicketUpdate(EncryptableSmartTicket encryptableTicket)
+        {
+            SmartTicket ticket = _dbContext.SmartTickets.Find(BitConverter.ToString(encryptableTicket.CardID));
+            if(ticket != null)
+            {
+                ticket.Credit = encryptableTicket.Credit;
+                ticket.TicketType = encryptableTicket.TicketTypeName;
+                ticket.CurrentValidation = encryptableTicket.CurrentValidation;
+                ticket.SessionValidation= encryptableTicket.SessionValidation;
+                ticket.SessionExpense = encryptableTicket.SessionExpense;
+                _dbContext.SaveChanges();
+            }
+        }
+
+        public void RegisterTransaction(NFCTicketing.CreditTransaction transaction)
+        {
+            _dbContext.CreditTransactions.Add(new CreditTransaction() { CardId = BitConverter.ToString(transaction.CardId), Location = transaction.Location, Amount = transaction.Amount, Date = transaction.Date });
+            _dbContext.SaveChanges();
+        }
+        #endregion
     }
 }

@@ -15,6 +15,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using NFCTicketingWebAPI.Middleware;
 
 namespace NFCTicketingWebAPI
 {
@@ -60,7 +61,10 @@ namespace NFCTicketingWebAPI
             {
                 app.UseDeveloperExceptionPage();
             }
-            
+
+            // Custom exception handler
+            app.ConfigureExceptionHandler();
+
             app.UseHttpsRedirection();
 
             app.UseRouting();

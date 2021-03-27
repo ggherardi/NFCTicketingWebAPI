@@ -14,8 +14,8 @@ namespace NFCTicketingWebAPI
 {
     public interface IAuthenticationManager
     {
-        bool Authenticate(DbContext context, string username, string password);
-        string GenerateToken(string username);
+        string GetRole(DbContext context, string username, string password);
+        string GenerateToken(string username, string role);
     }
 
     public class SmartTicketAuthenticationManager : IAuthenticationManager
@@ -27,17 +27,24 @@ namespace NFCTicketingWebAPI
             _key = key;
         }
 
-        public bool Authenticate(DbContext context, string username, string password)
+        public string GetRole(DbContext context, string username, string password)
         {
-            return (context as NFCValidationStorageContext)?.SmartTicketUsers.FirstOrDefault(u => u.Username == username && u.Password == /*remember to add the encryption code here, after making the registration method*/ password) != null;
+            /*remember to add the encryption code here, after making the registration method*/
+            return (context as NFCValidationStorageContext)?.SmartTicketUsers
+                .Include(r => r.RoleNavigation)
+                .FirstOrDefault(u => u.Username == username && u.Password == password).RoleNavigation.Name;
         }
 
-        public string GenerateToken(string username)
+        public string GenerateToken(string username, string role)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new Claim[] { new Claim(ClaimTypes.Name, username) }), 
+                Subject = new ClaimsIdentity(new Claim[]
+                { 
+                    new Claim(ClaimTypes.Name, username),
+                    new Claim(ClaimTypes.Role, role)
+                }), 
                 Expires = DateTime.UtcNow.AddHours(1), 
                 SigningCredentials = new SigningCredentials(_key, SecurityAlgorithms.RsaSha256Signature)
             };

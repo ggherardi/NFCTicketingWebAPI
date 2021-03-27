@@ -18,6 +18,7 @@ namespace NFCTicketingWebAPI
         }
 
         public virtual DbSet<CreditTransaction> CreditTransactions { get; set; }
+        public virtual DbSet<Role> Roles { get; set; }
         public virtual DbSet<SmartTicket> SmartTickets { get; set; }
         public virtual DbSet<SmartTicketUser> SmartTicketUsers { get; set; }
         public virtual DbSet<Validation> Validations { get; set; }
@@ -53,8 +54,20 @@ namespace NFCTicketingWebAPI
                 entity.HasOne(d => d.Card)
                     .WithMany(p => p.CreditTransactions)
                     .HasForeignKey(d => d.CardId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_CreditTransaction_SmartTicket");
+            });
+
+            modelBuilder.Entity<Role>(entity =>
+            {
+                entity.ToTable("Role");
+
+                entity.Property(e => e.Id).HasColumnName("id");
+
+                entity.Property(e => e.Name)
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .IsUnicode(false)
+                    .HasColumnName("name");
             });
 
             modelBuilder.Entity<SmartTicket>(entity =>
@@ -148,9 +161,17 @@ namespace NFCTicketingWebAPI
                     .IsUnicode(false)
                     .HasColumnName("password");
 
+                entity.Property(e => e.Role).HasColumnName("role");
+
                 entity.Property(e => e.Surname)
                     .IsUnicode(false)
                     .HasColumnName("surname");
+
+                entity.HasOne(d => d.RoleNavigation)
+                    .WithMany(p => p.SmartTicketUsers)
+                    .HasForeignKey(d => d.Role)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_SmartTicketUser_Role");
             });
 
             modelBuilder.Entity<Validation>(entity =>
