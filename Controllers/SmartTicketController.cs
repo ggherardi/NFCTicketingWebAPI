@@ -176,11 +176,11 @@ namespace NFCTicketingWebAPI.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("deleteticket")]
-        public IActionResult DeleteVirtualTicket([FromBody] string cardId)
+        [HttpDelete]
+        [Route("deleteticket/{cardid}")]
+        public IActionResult DeleteVirtualTicket(string cardid)
         {            
-            SmartTicket ticket = _dbContext.SmartTickets.Find(cardId);
+            SmartTicket ticket = _dbContext.SmartTickets.Find(cardid);
             if (ticket != null && ticket.Username == User.Identity.Name && ticket.Virtual)
             {
                 _dbContext.Remove(ticket);
