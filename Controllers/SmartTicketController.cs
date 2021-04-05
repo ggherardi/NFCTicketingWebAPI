@@ -48,7 +48,7 @@ namespace NFCTicketingWebAPI.Controllers
             return Ok(token);
         }        
 
-        [AllowAnonymous]
+        [AllowAnonymous]        
         [HttpPost]
         [Route("register")]
         public IActionResult RegisterUser([FromBody] UserRegistration registration)
@@ -240,12 +240,14 @@ namespace NFCTicketingWebAPI.Controllers
         }
 
         #region IValidationStorage interface
+        [ApiExplorerSettings(IgnoreApi = true)]
         public void RegisterValidation(ValidationEntity validation)
         {
             _dbContext.Validations.Add(new Validation() { CardId = BitConverter.ToString(validation.CardId), Location = validation.Location, ValidationTime = validation.Time, EncryptedTicket = validation.EncryptedTicketHash });
             _dbContext.SaveChanges();
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         public void RegisterTicketUpdate(EncryptableSmartTicket encryptableTicket)
         {
             SmartTicket ticket = _dbContext.SmartTickets.Find(BitConverter.ToString(encryptableTicket.CardID));
@@ -260,6 +262,7 @@ namespace NFCTicketingWebAPI.Controllers
             }
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         public void RegisterTransaction(NFCTicketing.CreditTransaction transaction)
         {
             _dbContext.CreditTransactions.Add(new CreditTransaction() { CardId = BitConverter.ToString(transaction.CardId), Location = transaction.Location, Amount = transaction.Amount, Date = transaction.Date });
